@@ -19,7 +19,7 @@
     "react-dom": "19.0.0",
     "react-hook-form": "^7.56.4",
     "react-native": "0.79.2",
-    "react-native-reanimated": "^3.16.2",
+    "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-toast-message": "^2.3.0",
     "react-native-web": "^0.20.0",
@@ -31,6 +31,5 @@
     "@types/react": "~19.0.10",
     "typescript": "~5.8.3"
   },
-  "private": true,
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  "private": true
 }

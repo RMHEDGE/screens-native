@@ -58,21 +58,20 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: Constants.statusBarHeight,
     display: 'flex',
-    height: '100%',
-    width: '100%'
+    flex: 1
   },
   center: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
-    width: '100%'
+    flex: 1
   }
 });
 
 function Split({ config }: { config: Config }) {
   if (!Array.isArray(config)) {
     return <WebView
+      style={{ flex: 1 }}
       source={{ uri: config.url }}
       injectedJavaScript={[
         `(() => {${config.onLoad}})()`,
@@ -80,8 +79,8 @@ function Split({ config }: { config: Config }) {
       ].join('\n')} />
   } else {
     return (
-      <View style={{ display: 'flex' }}>
-        {config.map(c => <Split config={c} />)}
+      <View style={{ flex: 1, display: 'flex' }}>
+        {config.map((c, index) => <Split key={index} config={c} />)}
       </View>
     )
   }
@@ -119,12 +118,16 @@ function Form({ onConfig }: { onConfig: (c: Config) => void }) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <View style={styles.center}>
+      <View style={{ flex: 1, padding: 20, alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
         <Text>What is this screen's ID?</Text>
-        <TextInput onSubmitEditing={() => onSubmit()} onChangeText={txt => setUrl(txt)} />
+        <TextInput
+          style={{ marginTop: 10, outlineWidth: 1, outlineStyle: 'solid', outlineColor: 'cornflowerblue' }}
+          onSubmitEditing={() => onSubmit()}
+          onChangeText={txt => setUrl(txt)}
+        />
       </View>
-    </View >
+    </View>
   )
 }
 

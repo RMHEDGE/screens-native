@@ -1,10 +1,11 @@
 import { WebView } from 'react-native-webview';
 import Constants from 'expo-constants';
-import { StyleSheet, View, Text, TextInput } from 'react-native';
+import { StyleSheet, View, Text, TextInput, Platform, TVEventHandler, useTVEventHandler } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMemo, useState } from 'react';
 import Toast from 'react-native-toast-message';
 import { useKeepAwake } from 'expo-keep-awake';
+import * as Updates from 'expo-updates';
 
 type Config = {
   url: string,
@@ -23,12 +24,59 @@ export default function App() {
       const config = await getConfig();
       if (config == null) return setState('needs-input');
       else {
-        setConfig(config);
+        setConfig(config[0]);
         setState('displaying');
       }
     }
 
   }, [config]);
+
+  useTVEventHandler(async ({ eventType }) => {
+    if (eventType === 'left') {
+      Toast.show({
+        type: 'info',
+        text1: "Respringing"
+      })
+
+      await Updates.reloadAsync();
+    } else if (eventType === 'right') {
+      Toast.show({
+        type: 'info',
+        text1: "Reloading Config"
+      });
+
+      const config = await getConfig();
+      if (!config) return Toast.show({
+        type: 'error',
+        text1: "Sanity invalidated",
+        text2: "Config became null while it was assumed to be valid"
+      });
+
+      fetchConfig(config[1])
+        .then(c => {
+          setConfig(c);
+          setState('displaying');
+          storeConfig(c)
+            .catch(e => Toast.show({
+              type: 'success',
+              text1: "Saved config",
+              text2: "On load, this screen will be configured"
+            }))
+            .catch(e => Toast.show({
+              type: 'error',
+              text1: "Failed to save config",
+              text2: String(e)
+            }));
+        })
+        .catch(e => {
+          Toast.show({
+            type: 'error',
+            text1: "Failed to get config",
+            text2: String(e),
+          })
+        })
+    }
+  });
 
   return (
     <View style={styles.container}>
@@ -56,7 +104,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Constants.statusBarHeight,
+    paddingTop: Platform.isTV ? 0 : Constants.statusBarHeight,
     display: 'flex',
     flex: 1
   },
@@ -65,6 +113,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1
+  },
+  formContainer: {
+    flex: 1,
+    padding: Platform.isTV ? 40 : 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  formText: {
+    fontSize: Platform.isTV ? 32 : 16,
+    marginBottom: Platform.isTV ? 20 : 10
+  },
+  input: {
+    marginTop: Platform.isTV ? 20 : 10,
+    outlineWidth: 1,
+    outlineStyle: 'solid',
+    outlineColor: 'cornflowerblue',
+    fontSize: Platform.isTV ? 24 : 16,
+    minWidth: Platform.isTV ? 300 : 200,
+    padding: Platform.isTV ? 16 : 8
   }
 });
 
@@ -119,10 +188,10 @@ function Form({ onConfig }: { onConfig: (c: Config) => void }) {
 
   return (
     <View style={styles.center}>
-      <View style={{ flex: 1, padding: 20, alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column' }}>
-        <Text>What is this screen's ID?</Text>
+      <View style={styles.formContainer}>
+        <Text style={styles.formText}>What is this screen's ID?</Text>
         <TextInput
-          style={{ marginTop: 10, outlineWidth: 1, outlineStyle: 'solid', outlineColor: 'cornflowerblue' }}
+          style={styles.input}
           onSubmitEditing={() => onSubmit()}
           onChangeText={txt => setUrl(txt)}
         />
@@ -137,14 +206,17 @@ const fetchConfig = (id: string) => new Promise<Config>(async (ok, err) => {
     .catch(e => err("Invalid config ID"))
 })
 
-const getConfig = async (): Promise<Config | null> => {
+const getConfig = async (): Promise<[Config, string] | null> => {
   try {
     const config = await AsyncStorage.getItem('config');
-    return config == null ? null : JSON.parse(config);
+    const id = await AsyncStorage.getItem('id');
+    return (config == null || id == null) ? null : [JSON.parse(config), id];
   } catch (e) {
     return null;
   }
 }
 
-const storeConfig = async (c: Config) =>
+const storeConfig = async (c: Config) => {
   AsyncStorage.setItem('config', JSON.stringify(c));
+  AsyncStorage.setItem('id', JSON.stringify(c));
+}

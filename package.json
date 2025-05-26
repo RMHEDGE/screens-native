@@ -14,11 +14,12 @@
     "expo": "~53.0.9",
     "expo-keep-awake": "~14.1.4",
     "expo-status-bar": "~2.2.3",
+    "expo-updates": "~0.28.13",
     "nativewind": "^4.1.23",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-hook-form": "^7.56.4",
-    "react-native": "0.79.2",
+    "react-native": "npm:react-native-tvos@0.79.1-0",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-toast-message": "^2.3.0",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
+    "metro": "^0.82.4",
     "typescript": "~5.8.3"
   },
   "private": true

@@ -2,8 +2,8 @@
   "expo": {
     "name": "displays",
     "slug": "displays",
-    "version": "1.0.0",
-    "orientation": "portrait",
+    "version": "1.0.1",
+    "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -31,6 +31,6 @@
         "projectId": "8ce1db19-e3d0-48cf-9729-2199095fb2f9"
       }
     },
-    "owner": "tascord"
+    "owner": "rmhedge"
   }
 }

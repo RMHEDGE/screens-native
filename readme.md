@@ -1,0 +1,4 @@
+- `npm i; sudo npm i --global eas-cli`
+- `epo install --check`
+- `npx expo` (to run locally)
+- `eas build` (when u want to make a build)

@@ -13,7 +13,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rmhedge.displays"
     },
     "android": {
       "adaptiveIcon": {
@@ -31,6 +32,9 @@
         "projectId": "8ce1db19-e3d0-48cf-9729-2199095fb2f9"
       }
     },
-    "owner": "rmhedge"
+    "owner": "rmhedge",
+    "plugins": [
+      "@react-native-tvos/config-tv"
+    ]
   }
 }

@@ -32,14 +32,16 @@ export default function App() {
   }, [config]);
 
   useTVEventHandler(async ({ eventType }) => {
-    if (eventType === 'left') {
+    console.log(eventType); // Should we need to know the names of things
+;
+    if (eventType === 'rewind') /* this might need to be previous */ {
       Toast.show({
         type: 'info',
         text1: "Respringing"
       })
 
       await Updates.reloadAsync();
-    } else if (eventType === 'right') {
+    } else if (eventType === 'fastForward') /* this might need to be next */ {
       Toast.show({
         type: 'info',
         text1: "Reloading Config"

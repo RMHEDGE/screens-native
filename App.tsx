@@ -1,11 +1,16 @@
 import { WebView } from 'react-native-webview';
-import Constants from 'expo-constants';
-import { StyleSheet, View, Text, TextInput, Platform, TVEventHandler, useTVEventHandler } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StyleSheet, View, Text, TextInput, Platform, useTVEventHandler } from 'react-native';
 import { useMemo, useState } from 'react';
-import Toast from 'react-native-toast-message';
 import { useKeepAwake } from 'expo-keep-awake';
+
+import Constants from 'expo-constants';
+import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
+import { LogClient } from './logs';
+import { LogEntryData } from './logs/ty';
+
+const LOGGER_ID = 'rm-displays';
 
 type Config = {
   url: string,
@@ -17,6 +22,11 @@ export default function App() {
   useKeepAwake();
   const [config, setConfig] = useState<Config>();
   const [state, setState] = useState<'startup' | 'loading' | 'needs-input' | 'displaying'>('startup');
+  const [id, setId] = useState<string>();
+
+  let logs = new LogClient({
+    baseURL: 'https://logs.imflo.pet',
+  });
 
   useMemo(async () => {
 
@@ -24,6 +34,20 @@ export default function App() {
       const config = await getConfig();
       if (config == null) return setState('needs-input');
       else {
+        logs.registerLogger(LOGGER_ID)
+          .catch(() => { })
+          .finally(() => {
+            setId(config[1]);
+            Toast.show({
+              type: 'info',
+              text1: 'Connected to logging service'
+            });
+            logs.sendLog(LOGGER_ID, config[1], {
+              level: 'info',
+              message: 'Logger connected',
+            })
+          });
+
         setConfig(config[0]);
         setState('displaying');
       }
@@ -33,15 +57,15 @@ export default function App() {
 
   useTVEventHandler(async ({ eventType }) => {
     console.log(eventType); // Should we need to know the names of things
-;
-    if (eventType === 'rewind') /* this might need to be previous */ {
+
+    if (eventType === 'rewind') {
       Toast.show({
         type: 'info',
         text1: "Respringing"
       })
 
       await Updates.reloadAsync();
-    } else if (eventType === 'fastForward') /* this might need to be next */ {
+    } else if (eventType === 'fastForward') {
       Toast.show({
         type: 'info',
         text1: "Reloading Config"
@@ -58,8 +82,8 @@ export default function App() {
         .then(c => {
           setConfig(c);
           setState('displaying');
-          storeConfig(c)
-            .catch(e => Toast.show({
+          storeConfig(c, config[1])
+            .then(() => Toast.show({
               type: 'success',
               text1: "Saved config",
               text2: "On load, this screen will be configured"
@@ -73,7 +97,7 @@ export default function App() {
         .catch(e => {
           Toast.show({
             type: 'error',
-            text1: "Failed to get config",
+            text1: `Failed to get config '${config[1]}'`,
             text2: String(e),
           })
         })
@@ -83,11 +107,11 @@ export default function App() {
   return (
     <View style={styles.container}>
       {(state == 'loading' || state == 'startup') && <Loader />}
-      {state == 'displaying' && <Split config={config!} />}
-      {state == 'needs-input' && <Form onConfig={(c) => {
+      {state == 'displaying' && <Split config={config!} logs={logs} id={id!} />}
+      {state == 'needs-input' && <Form onConfig={(c, id) => {
         setConfig(c);
         setState('displaying');
-        storeConfig(c)
+        storeConfig(c, id)
           .catch(e => Toast.show({
             type: 'success',
             text1: "Saved config",
@@ -139,19 +163,46 @@ const styles = StyleSheet.create({
   }
 });
 
-function Split({ config }: { config: Config }) {
+function Split({ config, logs, id }: { config: Config, logs: LogClient, id: string }) {
   if (!Array.isArray(config)) {
+    const script = [
+      config.onLoad ? `(() => {${config.onLoad}})()` : '',
+      `setTimeout(() => window.location.reload(), ${config.reload});`,
+      `
+        const consoleLog = (type, log) => window.ReactNativeWebView.postMessage(JSON.stringify({'type': 'Console', 'data': {'level': type, 'message': log}}));
+        console = {
+          log: (log) => consoleLog('info', log),
+          debug: (log) => consoleLog('debug', log),
+          info: (log) => consoleLog('info', log),
+          warn: (log) => consoleLog('warn', log),
+          error: (log) => consoleLog('error', log),
+        };`
+    ].filter(Boolean).join('\n');
+
     return <WebView
+      ref={r => r?.injectJavaScript(script)}
       style={{ flex: 1 }}
       source={{ uri: config.url }}
-      injectedJavaScript={[
-        `(() => {${config.onLoad}})()`,
-        `setTimeout(() => window.location.reload(), ${config.reload});`
-      ].join('\n')} />
+      injectedJavaScript={script}
+      onMessage={m => {
+        let payload: { type: string, data: LogEntryData } | undefined;
+        try {
+          payload = JSON.parse(m.nativeEvent.data);
+          console.log(payload);
+        } catch (e) { }
+
+        if (payload) {
+          if (payload.type === 'Console') {
+            console.info(`[Console] ${JSON.stringify(payload.data)}`);
+            logs.sendLog(LOGGER_ID, id, payload.data);
+          }
+        }
+      }}
+    />
   } else {
     return (
       <View style={{ flex: 1, display: 'flex' }}>
-        {config.map((c, index) => <Split key={index} config={c} />)}
+        {config.map((c, index) => <Split key={index} config={c} logs={logs} id={id} />)}
       </View>
     )
   }
@@ -167,7 +218,7 @@ function Loader() {
   )
 }
 
-function Form({ onConfig }: { onConfig: (c: Config) => void }) {
+function Form({ onConfig }: { onConfig: (c: Config, id: string) => void }) {
   const [id, setUrl] = useState('');
 
   const onSubmit = () => {
@@ -177,7 +228,7 @@ function Form({ onConfig }: { onConfig: (c: Config) => void }) {
     });
 
     fetchConfig(id)
-      .then(c => onConfig(c))
+      .then(c => onConfig(c, id))
       .catch(e => {
         Toast.show({
           type: 'error',
@@ -218,7 +269,7 @@ const getConfig = async (): Promise<[Config, string] | null> => {
   }
 }
 
-const storeConfig = async (c: Config) => {
+const storeConfig = async (c: Config, id: string) => {
   AsyncStorage.setItem('config', JSON.stringify(c));
-  AsyncStorage.setItem('id', JSON.stringify(c));
+  AsyncStorage.setItem('id', id);
 }

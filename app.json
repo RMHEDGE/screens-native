@@ -34,7 +34,21 @@
     },
     "owner": "rmhedge",
     "plugins": [
-      "@react-native-tvos/config-tv"
-    ]
+      "@react-native-tvos/config-tv",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8ce1db19-e3d0-48cf-9729-2199095fb2f9"
+    }
   }
 }

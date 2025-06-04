@@ -18,15 +18,17 @@ type Config = {
   onLoad: string,
 } | Config[]
 
+
+let logs = new LogClient({
+  baseURL: 'https://logs.imflo.pet',
+});
+
+
 export default function App() {
   useKeepAwake();
   const [config, setConfig] = useState<Config>();
   const [state, setState] = useState<'startup' | 'loading' | 'needs-input' | 'displaying'>('startup');
   const [id, setId] = useState<string>();
-
-  let logs = new LogClient({
-    baseURL: 'https://logs.imflo.pet',
-  });
 
   useMemo(async () => {
 
@@ -88,13 +90,26 @@ export default function App() {
               text1: "Saved config",
               text2: "On load, this screen will be configured"
             }))
-            .catch(e => Toast.show({
-              type: 'error',
-              text1: "Failed to save config",
-              text2: String(e)
-            }));
+            .catch(e => {
+              logs.sendLog(LOGGER_ID, config[1], {
+                level: 'error',
+                message: 'Error saving config',
+                data: e
+              });
+              Toast.show({
+                type: 'error',
+                text1: "Failed to save config",
+                text2: String(e)
+              })
+            });
         })
         .catch(e => {
+          logs.sendLog(LOGGER_ID, config[1], {
+            level: 'error',
+            message: 'Error getting config',
+            data: e
+          });
+
           Toast.show({
             type: 'error',
             text1: `Failed to get config '${config[1]}'`,
@@ -112,16 +127,24 @@ export default function App() {
         setConfig(c);
         setState('displaying');
         storeConfig(c, id)
-          .catch(e => Toast.show({
+          .then(e => Toast.show({
             type: 'success',
             text1: "Saved config",
             text2: "On load, this screen will be configured"
           }))
-          .catch(e => Toast.show({
-            type: 'error',
-            text1: "Failed to save config",
-            text2: String(e)
-          }));
+          .catch(e => {
+            logs.sendLog(LOGGER_ID, id, {
+              level: 'error',
+              message: 'Error saving config',
+              data: e
+            });
+
+            Toast.show({
+              type: 'error',
+              text1: "Failed to save config",
+              text2: String(e)
+            })
+          });
       }} />}
       <Toast />
     </View>
@@ -185,6 +208,9 @@ function Split({ config, logs, id }: { config: Config, logs: LogClient, id: stri
       source={{ uri: config.url }}
       injectedJavaScript={script}
       allowsInlineMediaPlayback={true}
+      allowsPictureInPictureMediaPlayback={true}
+      originWhitelist={['*']}
+      allowsProtectedMedia={true}
       userAgent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
       onMessage={m => {
         let payload: { type: string, data: LogEntryData } | undefined;
@@ -232,6 +258,13 @@ function Form({ onConfig }: { onConfig: (c: Config, id: string) => void }) {
     fetchConfig(id)
       .then(c => onConfig(c, id))
       .catch(e => {
+
+        logs.sendLog(LOGGER_ID, id, {
+          level: 'error',
+          message: 'Error getting config',
+          data: e
+        });
+
         Toast.show({
           type: 'error',
           text1: "Failed to get config",
@@ -257,7 +290,15 @@ function Form({ onConfig }: { onConfig: (c: Config, id: string) => void }) {
 
 const fetchConfig = (id: string) => new Promise<Config>(async (ok, err) => {
   fetch(`https://raw.githubusercontent.com/RMHEDGE/rm-displays/refs/heads/main/${id}.json`)
-    .then(v => v.json().then(v => ok(v)).catch(e => err("Invalid config format")))
+    .then(v => v.json().then(v => ok(v)).catch(e => {
+      logs.sendLog(LOGGER_ID, id, {
+        level: 'error',
+        message: 'Error loading config',
+        data: e
+      });
+
+      err("Invalid config format");
+    }))
     .catch(e => err("Invalid config ID"))
 })
 

@@ -2443,13 +2443,6 @@ event-target-shim@^5.0.0, event-target-shim@^5.0.1:
   resolved "https://registry.npmjs.org/event-target-shim/-/event-target-shim-5.0.1.tgz"
   integrity sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==
 
-expo-app-metrics@~57.0.2:
-  version "57.0.2"
-  resolved "https://registry.npmjs.org/expo-app-metrics/-/expo-app-metrics-57.0.2.tgz"
-  integrity sha512-qKHLABk5eXM4n9SAEcSo4CPnkz8aSA7ThfG4sIRqds93nF/KznijwouK625QuSDqQ80/vZwx5GoEdf6Ih09O7Q==
-  dependencies:
-    expo-updates-interface "~57.0.0"
-
 expo-asset@~11.1.7:
   version "11.1.7"
   resolved "https://registry.yarnpkg.com/expo-asset/-/expo-asset-11.1.7.tgz#dfc61100312cc0dd394d0e0b33613bb0cc898746"
@@ -2478,11 +2471,6 @@ expo-eas-client@~0.14.4:
   version "0.14.4"
   resolved "https://registry.yarnpkg.com/expo-eas-client/-/expo-eas-client-0.14.4.tgz#33a111d565a58bb425565616086f9abb686f903e"
   integrity sha512-TSL1BbBFIuXchJmPgbPnB7cGpOOuSGJcQ/L7gij/+zPjExwvKm5ckA5dlSulwoFhH8zQt4vb7bfISPSAWQVWBw==
-
-expo-eas-client@~57.0.0:
-  version "57.0.0"
-  resolved "https://registry.npmjs.org/expo-eas-client/-/expo-eas-client-57.0.0.tgz"
-  integrity sha512-HYroDzqYFpALIXW5tpQD2WHqij3iUal+fXzVJhIYV3OdVcbobxt+p6209OJDARlU431CANZwp4vPmS7yRCWTCw==
 
 expo-file-system@~18.1.11:
   version "18.1.11"
@@ -2534,14 +2522,6 @@ expo-modules-core@2.5.0:
   dependencies:
     invariant "^2.2.4"
 
-expo-observe@^57.0.4:
-  version "57.0.4"
-  resolved "https://registry.npmjs.org/expo-observe/-/expo-observe-57.0.4.tgz"
-  integrity sha512-3BgtXZIKxeO5PqmCYnJBUA6NK7Gg/UnGWuiz/4WUr/bm4staB69hMdXa1Skh6+bEAt4h2h3AUd5DJB/wjTkS5A==
-  dependencies:
-    expo-app-metrics "~57.0.2"
-    expo-eas-client "~57.0.0"
-
 expo-status-bar@~2.2.3:
   version "2.2.3"
   resolved "https://registry.npmjs.org/expo-status-bar/-/expo-status-bar-2.2.3.tgz"
@@ -2559,11 +2539,6 @@ expo-updates-interface@~1.1.0:
   version "1.1.0"
   resolved "https://registry.npmjs.org/expo-updates-interface/-/expo-updates-interface-1.1.0.tgz"
   integrity sha512-DeB+fRe0hUDPZhpJ4X4bFMAItatFBUPjw/TVSbJsaf3Exeami+2qbbJhWkcTMoYHOB73nOIcaYcWXYJnCJXO0w==
-
-expo-updates-interface@~57.0.0:
-  version "57.0.0"
-  resolved "https://registry.npmjs.org/expo-updates-interface/-/expo-updates-interface-57.0.0.tgz"
-  integrity sha512-AQASxPDpUjHG55R4WXZ5mLu0rE4F2T/JfHOsXLfZPS1A268ynHHFv+MnZ99/Gb0xWvg3ZjNTgXPEWoRCShSJJg==
 
 expo-updates@~0.28.18:
   version "0.28.18"

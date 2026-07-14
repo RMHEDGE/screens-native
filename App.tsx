@@ -9,7 +9,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { LogClient } from './logs';
 import { LogEntryData } from './logs/ty';
-import { useObserve } from 'expo-observe';
 
 const LOGGER_ID = 'rm-displays';
 
@@ -30,8 +29,6 @@ export default function App() {
   const [config, setConfig] = useState<Config>();
   const [state, setState] = useState<'startup' | 'loading' | 'needs-input' | 'displaying'>('startup');
   const [id, setId] = useState<string>();
-
-  const { markInteractive } = useObserve();
 
   useMemo(async () => {
 
@@ -56,8 +53,6 @@ export default function App() {
         setConfig(config[0]);
         setState('displaying');
       }
-
-      markInteractive();
     }
 
   }, [config]);

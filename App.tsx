@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { LogClient } from './logs';
 import { LogEntryData } from './logs/ty';
+import { useObserve } from 'expo-observe';
 
 const LOGGER_ID = 'rm-displays';
 
@@ -20,7 +21,7 @@ type Config = {
 
 
 let logs = new LogClient({
-  baseURL: 'https://logs.imflo.pet',
+  baseURL: 'http://192.168.1.243:40000',
 });
 
 
@@ -29,6 +30,8 @@ export default function App() {
   const [config, setConfig] = useState<Config>();
   const [state, setState] = useState<'startup' | 'loading' | 'needs-input' | 'displaying'>('startup');
   const [id, setId] = useState<string>();
+
+  const { markInteractive } = useObserve();
 
   useMemo(async () => {
 
@@ -53,6 +56,8 @@ export default function App() {
         setConfig(config[0]);
         setState('displaying');
       }
+
+      markInteractive();
     }
 
   }, [config]);
@@ -209,8 +214,10 @@ function Split({ config, logs, id }: { config: Config, logs: LogClient, id: stri
       injectedJavaScript={script}
       allowsInlineMediaPlayback={true}
       allowsPictureInPictureMediaPlayback={true}
-      originWhitelist={['*']}
       allowsProtectedMedia={true}
+      javaScriptEnabled={true}
+      domStorageEnabled={true}
+      originWhitelist={['*']}
       userAgent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
       onMessage={m => {
         let payload: { type: string, data: LogEntryData } | undefined;

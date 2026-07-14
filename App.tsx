@@ -1,6 +1,6 @@
 import { WebView } from 'react-native-webview';
 import { StyleSheet, View, Text, TextInput, Platform, useTVEventHandler } from 'react-native';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import Constants from 'expo-constants';
@@ -23,7 +23,6 @@ let logs = new LogClient({
   baseURL: 'http://192.168.1.243:4001',
 });
 
-
 export default function App() {
   useKeepAwake();
   const [config, setConfig] = useState<Config>();
@@ -38,16 +37,18 @@ export default function App() {
       else {
         logs.registerLogger(LOGGER_ID)
           .catch(() => { })
-          .finally(() => {
+          .then(() => {
             setId(config[1]);
+            logs.sendLog(LOGGER_ID, config[1], {
+              level: 'info',
+              message: 'Logger connected',
+            });
+          })
+          .finally(() => {
             Toast.show({
               type: 'info',
               text1: 'Connected to logging service'
             });
-            logs.sendLog(LOGGER_ID, config[1], {
-              level: 'info',
-              message: 'Logger connected',
-            })
           });
 
         setConfig(config[0]);
@@ -56,6 +57,25 @@ export default function App() {
     }
 
   }, [config]);
+
+  useEffect(() => {
+    const checkAndApplyUpdates = async () => {
+      try {
+        if (__DEV__) return;
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (e) {
+        console.error('Update check failed:', e);
+      }
+    };
+
+    checkAndApplyUpdates();
+    const interval = setInterval(checkAndApplyUpdates, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useTVEventHandler(async ({ eventType }) => {
     console.log(eventType); // Should we need to know the names of things

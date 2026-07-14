@@ -20,7 +20,7 @@ type Config = {
 
 
 let logs = new LogClient({
-  baseURL: 'http://192.168.1.243:40000',
+  baseURL: 'http://192.168.1.243:4001',
 });
 
 

@@ -16,6 +16,7 @@ type Config = {
   url: string,
   reload: number,
   onLoad: string,
+  proxy?: string,
 } | Config[]
 
 
@@ -219,19 +220,85 @@ function Split({ config, logs, id }: { config: Config, logs: LogClient, id: stri
           info: (log) => consoleLog('info', log),
           warn: (log) => consoleLog('warn', log),
           error: (log) => consoleLog('error', log),
-        };`
+        };
+
+        // COEP/COOP status logging
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'Console',
+          data: {
+            level: 'info',
+            message: 'COEP/COOP Status: crossOriginIsolated=' + window.crossOriginIsolated +
+                     ', SharedArrayBuffer=' + (typeof SharedArrayBuffer !== 'undefined')
+          }
+        }));
+
+        // Listen for cross-origin resource errors
+        window.addEventListener('message', function(e) {
+          if (e.data && typeof e.data === 'string' && e.data.includes('SharedArrayBuffer')) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'Console',
+              data: { level: 'error', message: 'SharedArrayBuffer error: ' + e.data }
+            }));
+          }
+        });
+
+        // Override Error constructor to catch SharedArrayBuffer errors
+        const OriginalError = window.Error;
+        window.Error = function(message) {
+          const error = new OriginalError(message);
+          if (message && message.includes('SharedArrayBuffer')) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'Console',
+              data: { level: 'error', message: 'SharedArrayBuffer Error caught: ' + message }
+            }));
+          }
+          return error;
+        };
+        window.Error.prototype = OriginalError.prototype;
+
+        // Test SharedArrayBuffer availability
+        try {
+          if (typeof SharedArrayBuffer !== 'undefined') {
+            const sb = new SharedArrayBuffer(16);
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'Console',
+              data: { level: 'info', message: 'SharedArrayBuffer is AVAILABLE, creating test buffer' }
+            }));
+          } else {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'Console',
+              data: { level: 'warn', message: 'SharedArrayBuffer is NOT available (undefined)' }
+            }));
+          }
+        } catch(e) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'Console',
+            data: { level: 'error', message: 'SharedArrayBuffer test failed: ' + e.message }
+          }));
+        }
+
+        // Report all response headers from main frame
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'Console',
+          data: { level: 'info', message: 'Checking document.readyState: ' + document.readyState }
+        }));`
     ].filter(Boolean).join('\n');
+
+    const webViewSource = config.proxy
+      ? { uri: config.proxy, headers: { 'X-Target-Url': config.url } }
+      : { uri: config.url };
 
     return <WebView
       ref={r => r?.injectJavaScript(script)}
       style={{ flex: 1 }}
-      source={{ uri: config.url }}
+      source={webViewSource}
       injectedJavaScript={script}
       allowsInlineMediaPlayback={true}
       allowsPictureInPictureMediaPlayback={true}
       allowsProtectedMedia={true}
       javaScriptEnabled={true}
       domStorageEnabled={true}
+      enableApplePay={true}
       originWhitelist={['*']}
       userAgent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
       onMessage={m => {

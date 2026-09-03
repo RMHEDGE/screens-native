@@ -26,6 +26,14 @@ let logs = new LogClient({
 
 export default function App() {
   useKeepAwake();
+  // Enable WebView debugging for chrome://inspect and about:debugging (GeckoView)
+  useEffect(() => {
+    // @ts-ignore - setWebContentsDebuggingEnabled exists on Android WebView
+    if ((WebView as any).setWebContentsDebuggingEnabled) {
+      (WebView as any).setWebContentsDebuggingEnabled(true);
+      console.log('WebView debugging enabled');
+    }
+  }, []);
   const [config, setConfig] = useState<Config>();
   const [state, setState] = useState<'startup' | 'loading' | 'needs-input' | 'displaying'>('startup');
   const [id, setId] = useState<string>();

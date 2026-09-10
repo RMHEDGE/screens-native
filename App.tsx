@@ -301,6 +301,7 @@ function Split({ config, logs, id }: { config: Config, logs: LogClient, id: stri
       style={{ flex: 1 }}
       source={webViewSource}
       injectedJavaScript={script}
+      webviewDebuggingEnabled={true}
       allowsInlineMediaPlayback={true}
       allowsPictureInPictureMediaPlayback={true}
       allowsProtectedMedia={true}

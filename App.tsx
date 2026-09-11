@@ -1,6 +1,14 @@
 import { WebView } from 'react-native-webview';
-import { StyleSheet, View, Text, TextInput, Platform, useTVEventHandler } from 'react-native';
-import { useMemo, useState, useEffect } from 'react';
+import {
+  NativeModules,
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  Platform,
+  useTVEventHandler,
+} from 'react-native';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import Constants from 'expo-constants';
@@ -9,6 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import { LogClient } from './logs';
 import { LogEntryData } from './logs/ty';
+
+const { TwaLauncher } = NativeModules;
 
 const LOGGER_ID = 'rm-displays';
 
@@ -207,8 +217,39 @@ const styles = StyleSheet.create({
   }
 });
 
+function TwaDisplay({ url }: { url: string }) {
+  const launched = useRef(false);
+
+  useEffect(() => {
+    if (launched.current) {
+      return;
+    }
+
+    launched.current = true;
+
+    TwaLauncher.launch(url).catch((error: unknown) => {
+      launched.current = false;
+
+      console.error('TWA launch failed:', error);
+
+      Toast.show({
+        type: 'error',
+        text1: 'Failed to open display',
+        text2: String(error),
+      });
+    });
+  }, [url]);
+
+  return (
+    <View style={styles.center}>
+      <Text>Opening display...</Text>
+    </View>
+  );
+}
+
 function Split({ config, logs, id }: { config: Config, logs: LogClient, id: string }) {
   if (!Array.isArray(config)) {
+    return <TwaDisplay url={config.url} />;
     const script = [
       config.onLoad ? `(() => {${config.onLoad}})()` : '',
       `setTimeout(() => window.location.reload(), ${config.reload});`,

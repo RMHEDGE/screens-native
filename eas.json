@@ -8,14 +8,19 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_TV": "1"
+        "EXPO_TV": "1",
+        "NODE_ENV": "development"
       },
       "channel": "development"
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
-        "EXPO_TV": "1"
+        "EXPO_TV": "1",
+        "NODE_ENV": "production"
       },
       "channel": "preview"
     },
@@ -25,7 +30,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_TV": "1"
+        "EXPO_TV": "1",
+        "NODE_ENV": "production"
       },
       "channel": "production"
     }

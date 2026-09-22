@@ -1,3 +1,4 @@
+import Display from './Display';
 import { WebView } from 'react-native-webview';
 import {
   NativeModules,
@@ -224,34 +225,47 @@ const styles = StyleSheet.create({
 
 function TwaDisplay({ url }: { url: string }) {
   const launchedUrl = useRef<string | null>(null);
-  const [secondsRemaining, setSecondsRemaining] = useState(15);
+  const [secondsRemaining, setSecondsRemaining] = useState(5);
 
   useEffect(() => {
     if (launchedUrl.current === url) {
       return;
     }
 
-    setSecondsRemaining(15);
+    setSecondsRemaining(5);
 
     const interval = setInterval(() => {
       setSecondsRemaining(current => Math.max(0, current - 1));
     }, 1_000);
 
-    const timeout = setTimeout(() => {
-      launchedUrl.current = url;
+    const timeout = setTimeout(
+      () => {
+        console.log(
+          'Opening TWA URL:',
+          JSON.stringify(url),
+        );
 
-      TwaLauncher.launch(url).catch((error: unknown) => {
-        launchedUrl.current = null;
+        launchedUrl.current = url;
 
-        console.error('TWA launch failed:', error);
+        TwaLauncher.launch(url).catch(
+          (error: unknown) => {
+            launchedUrl.current = null;
 
-        Toast.show({
-          type: 'error',
-          text1: 'Failed to open display',
-          text2: String(error),
-        });
-      });
-    }, 5_000);
+            console.error(
+              'TWA launch failed:',
+              error,
+            );
+
+            Toast.show({
+              type: 'error',
+              text1: 'Failed to open display',
+              text2: String(error),
+            });
+          },
+        );
+      },
+      5_000,
+    );
 
     return () => {
       clearInterval(interval);
@@ -272,123 +286,322 @@ function TwaDisplay({ url }: { url: string }) {
   );
 }
 
-function Split({ config, logs, id }: { config: Config, logs: LogClient, id: string }) {
-  if (!Array.isArray(config)) {
-    return <TwaDisplay url={config.url} />;
-    const script = [
-      config.onLoad ? `(() => {${config.onLoad}})()` : '',
-      `setTimeout(() => window.location.reload(), ${config.reload});`,
-      `
-        const consoleLog = (type, log) => window.ReactNativeWebView.postMessage(JSON.stringify({'type': 'Console', 'data': {'level': type, 'message': log}}));
-        console = {
-          log: (log) => consoleLog('info', log),
-          debug: (log) => consoleLog('debug', log),
-          info: (log) => consoleLog('info', log),
-          warn: (log) => consoleLog('warn', log),
-          error: (log) => consoleLog('error', log),
-        };
+function shouldUseThorium(
+  url: string,
+): boolean {
+  try {
+    const parsedUrl = new URL(url);
 
-        // COEP/COOP status logging
-        window.ReactNativeWebView.postMessage(JSON.stringify({
+    return (
+      parsedUrl.protocol === 'https:' &&
+      parsedUrl.hostname === 'apps.rmhedge.com'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function Split({
+  config,
+  logs,
+  id,
+}: {
+  config: Config;
+  logs: LogClient;
+  id: string;
+}) {
+  if (Array.isArray(config)) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          display: 'flex',
+        }}
+      >
+        {config.map((childConfig, index) => (
+          <Split
+            key={index}
+            config={childConfig}
+            logs={logs}
+            id={id}
+          />
+        ))}
+      </View>
+    );
+  }
+
+  if (shouldUseThorium(config.url)) {
+    return (
+      <TwaDisplay
+        url={config.url}
+      />
+    );
+  }
+
+  const script = [
+    config.onLoad
+      ? `(() => {${config.onLoad}})()`
+      : '',
+
+    `setTimeout(
+      () => window.location.reload(),
+      ${config.reload}
+    );`,
+
+    `
+      const consoleLog = (type, log) => {
+        window.ReactNativeWebView.postMessage(
+          JSON.stringify({
+            type: 'Console',
+            data: {
+              level: type,
+              message: log,
+            },
+          })
+        );
+      };
+
+      console = {
+        log: log => consoleLog('info', log),
+        debug: log => consoleLog('debug', log),
+        info: log => consoleLog('info', log),
+        warn: log => consoleLog('warn', log),
+        error: log => consoleLog('error', log),
+      };
+
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
           type: 'Console',
           data: {
             level: 'info',
-            message: 'COEP/COOP Status: crossOriginIsolated=' + window.crossOriginIsolated +
-                     ', SharedArrayBuffer=' + (typeof SharedArrayBuffer !== 'undefined')
-          }
-        }));
+            message:
+              'COEP/COOP Status: crossOriginIsolated=' +
+              window.crossOriginIsolated +
+              ', SharedArrayBuffer=' +
+              (
+                typeof SharedArrayBuffer !==
+                'undefined'
+              ),
+          },
+        })
+      );
 
-        // Listen for cross-origin resource errors
-        window.addEventListener('message', function(e) {
-          if (e.data && typeof e.data === 'string' && e.data.includes('SharedArrayBuffer')) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'Console',
-              data: { level: 'error', message: 'SharedArrayBuffer error: ' + e.data }
-            }));
+      window.addEventListener(
+        'message',
+        function(event) {
+          if (
+            event.data &&
+            typeof event.data === 'string' &&
+            event.data.includes(
+              'SharedArrayBuffer'
+            )
+          ) {
+            window.ReactNativeWebView.postMessage(
+              JSON.stringify({
+                type: 'Console',
+                data: {
+                  level: 'error',
+                  message:
+                    'SharedArrayBuffer error: ' +
+                    event.data,
+                },
+              })
+            );
           }
-        });
+        }
+      );
 
-        // Override Error constructor to catch SharedArrayBuffer errors
-        const OriginalError = window.Error;
-        window.Error = function(message) {
-          const error = new OriginalError(message);
-          if (message && message.includes('SharedArrayBuffer')) {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'Console',
-              data: { level: 'error', message: 'SharedArrayBuffer Error caught: ' + message }
-            }));
-          }
-          return error;
-        };
-        window.Error.prototype = OriginalError.prototype;
+      const OriginalError = window.Error;
 
-        // Test SharedArrayBuffer availability
-        try {
-          if (typeof SharedArrayBuffer !== 'undefined') {
-            const sb = new SharedArrayBuffer(16);
-            window.ReactNativeWebView.postMessage(JSON.stringify({
+      window.Error = function(message) {
+        const error =
+          new OriginalError(message);
+
+        if (
+          message &&
+          message.includes(
+            'SharedArrayBuffer'
+          )
+        ) {
+          window.ReactNativeWebView.postMessage(
+            JSON.stringify({
               type: 'Console',
-              data: { level: 'info', message: 'SharedArrayBuffer is AVAILABLE, creating test buffer' }
-            }));
-          } else {
-            window.ReactNativeWebView.postMessage(JSON.stringify({
-              type: 'Console',
-              data: { level: 'warn', message: 'SharedArrayBuffer is NOT available (undefined)' }
-            }));
-          }
-        } catch(e) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'Console',
-            data: { level: 'error', message: 'SharedArrayBuffer test failed: ' + e.message }
-          }));
+              data: {
+                level: 'error',
+                message:
+                  'SharedArrayBuffer Error caught: ' +
+                  message,
+              },
+            })
+          );
         }
 
-        // Report all response headers from main frame
-        window.ReactNativeWebView.postMessage(JSON.stringify({
+        return error;
+      };
+
+      window.Error.prototype =
+        OriginalError.prototype;
+
+      try {
+        if (
+          typeof SharedArrayBuffer !==
+          'undefined'
+        ) {
+          new SharedArrayBuffer(16);
+
+          window.ReactNativeWebView.postMessage(
+            JSON.stringify({
+              type: 'Console',
+              data: {
+                level: 'info',
+                message:
+                  'SharedArrayBuffer is AVAILABLE, ' +
+                  'creating test buffer',
+              },
+            })
+          );
+        } else {
+          window.ReactNativeWebView.postMessage(
+            JSON.stringify({
+              type: 'Console',
+              data: {
+                level: 'warn',
+                message:
+                  'SharedArrayBuffer is NOT ' +
+                  'available (undefined)',
+              },
+            })
+          );
+        }
+      } catch (error) {
+        window.ReactNativeWebView.postMessage(
+          JSON.stringify({
+            type: 'Console',
+            data: {
+              level: 'error',
+              message:
+                'SharedArrayBuffer test failed: ' +
+                error.message,
+            },
+          })
+        );
+      }
+
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({
           type: 'Console',
-          data: { level: 'info', message: 'Checking document.readyState: ' + document.readyState }
-        }));`
-    ].filter(Boolean).join('\n');
+          data: {
+            level: 'info',
+            message:
+              'Checking document.readyState: ' +
+              document.readyState,
+          },
+        })
+      );
 
-    const webViewSource = config.proxy
-      ? { uri: config.proxy, headers: { 'X-Target-Url': config.url } }
-      : { uri: config.url };
+      true;
+    `,
+  ]
+    .filter(Boolean)
+    .join('\n');
 
-    return <WebView
-      ref={r => r?.injectJavaScript(script)}
-      style={{ flex: 1 }}
+  const webViewSource = config.proxy
+    ? {
+        uri: config.proxy,
+        headers: {
+          'X-Target-Url': config.url,
+        },
+      }
+    : {
+        uri: config.url,
+      };
+
+  return (
+    <WebView
+      ref={webView => {
+        webView?.injectJavaScript(
+          script,
+        );
+      }}
+      style={{
+        flex: 1,
+      }}
       source={webViewSource}
       injectedJavaScript={script}
-      allowsInlineMediaPlayback={true}
-      allowsPictureInPictureMediaPlayback={true}
-      allowsProtectedMedia={true}
-      javaScriptEnabled={true}
-      domStorageEnabled={true}
-      enableApplePay={true}
+      allowsInlineMediaPlayback
+      allowsPictureInPictureMediaPlayback
+      allowsProtectedMedia
+      javaScriptEnabled
+      domStorageEnabled
+      enableApplePay
       originWhitelist={['*']}
-      userAgent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
-      onMessage={m => {
-        let payload: { type: string, data: LogEntryData } | undefined;
-        try {
-          payload = JSON.parse(m.nativeEvent.data);
-          console.log(payload);
-        } catch (e) { }
+      userAgent={
+        'Mozilla/5.0 ' +
+        '(X11; Linux x86_64) ' +
+        'AppleWebKit/537.36 ' +
+        '(KHTML, like Gecko) ' +
+        'Chrome/133.0.0.0 ' +
+        'Safari/537.36'
+      }
+      onMessage={message => {
+        let payload:
+          | {
+              type: string;
+              data: LogEntryData;
+            }
+          | undefined;
 
-        if (payload) {
-          if (payload.type === 'Console') {
-            console.info(`[Console] ${JSON.stringify(payload.data)}`);
-            logs.sendLog(LOGGER_ID, id, payload.data);
-          }
+        try {
+          payload = JSON.parse(
+            message.nativeEvent.data,
+          );
+
+          console.log(payload);
+        } catch (error) {
+          console.error(
+            'Failed to parse WebView message:',
+            error,
+          );
+        }
+
+        if (
+          payload?.type === 'Console'
+        ) {
+          console.info(
+            `[Console] ${
+              JSON.stringify(
+                payload.data,
+              )
+            }`,
+          );
+
+          logs.sendLog(
+            LOGGER_ID,
+            id,
+            payload.data,
+          );
         }
       }}
+      onError={event => {
+        console.error(
+          'WebView error:',
+          event.nativeEvent,
+        );
+      }}
+      onHttpError={event => {
+        console.error(
+          'WebView HTTP error:',
+          event.nativeEvent,
+        );
+      }}
+      onRenderProcessGone={event => {
+        console.error(
+          'WebView render process exited:',
+          event.nativeEvent,
+        );
+      }}
     />
-  } else {
-    return (
-      <View style={{ flex: 1, display: 'flex' }}>
-        {config.map((c, index) => <Split key={index} config={c} logs={logs} id={id} />)}
-      </View>
-    )
-  }
+  );
 }
 
 function Loader() {

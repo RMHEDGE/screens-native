@@ -8,7 +8,12 @@ import {
   Platform,
   useTVEventHandler,
 } from 'react-native';
-import { useMemo, useState, useEffect, useRef } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import Constants from 'expo-constants';
@@ -218,31 +223,51 @@ const styles = StyleSheet.create({
 });
 
 function TwaDisplay({ url }: { url: string }) {
-  const launched = useRef(false);
+  const launchedUrl = useRef<string | null>(null);
+  const [secondsRemaining, setSecondsRemaining] = useState(15);
 
   useEffect(() => {
-    if (launched.current) {
+    if (launchedUrl.current === url) {
       return;
     }
 
-    launched.current = true;
+    setSecondsRemaining(15);
 
-    TwaLauncher.launch(url).catch((error: unknown) => {
-      launched.current = false;
+    const interval = setInterval(() => {
+      setSecondsRemaining(current => Math.max(0, current - 1));
+    }, 1_000);
 
-      console.error('TWA launch failed:', error);
+    const timeout = setTimeout(() => {
+      launchedUrl.current = url;
 
-      Toast.show({
-        type: 'error',
-        text1: 'Failed to open display',
-        text2: String(error),
+      TwaLauncher.launch(url).catch((error: unknown) => {
+        launchedUrl.current = null;
+
+        console.error('TWA launch failed:', error);
+
+        Toast.show({
+          type: 'error',
+          text1: 'Failed to open display',
+          text2: String(error),
+        });
       });
-    });
+    }, 5_000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, [url]);
 
   return (
     <View style={styles.center}>
-      <Text>Opening display...</Text>
+      <Text>
+        Opening display in {secondsRemaining}...
+      </Text>
+
+      <Text>
+        Press Fast Forward now to reload the configuration.
+      </Text>
     </View>
   );
 }
